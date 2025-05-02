@@ -13,6 +13,7 @@ func _process(delta: float) -> void:
 func parse_turtle_file(file_content):
 	var triples_by_subject = {}
 	var prefixes = {}
+	var subject_names = {}  # Dictionary to store schema:name for each subject
 	
 	# First pass: Extract prefixes
 	var prefix_regex = RegEx.new()
@@ -23,6 +24,16 @@ func parse_turtle_file(file_content):
 		var prefix = result.get_string(1)
 		var uri = result.get_string(2)
 		prefixes[prefix] = uri
+		
+	 # Extract all schema:name statements with @en language tag
+	var name_regex = RegEx.new()
+	name_regex.compile("(<[^>]+>|\\S+)\\s+schema:name\\s+\"([^\"]+)\"@en\\s*\\.")
+	var name_results = name_regex.search_all(file_content)
+	
+	for result in name_results:
+		var subject = result.get_string(1)
+		var name = result.get_string(2)
+		subject_names[subject] = name	
 	
 	# Second pass: Extract triples
 	var triple_regex = RegEx.new()
@@ -72,7 +83,8 @@ func parse_turtle_file(file_content):
 	
 	return {
 		"prefixes": prefixes,
-		"triples_by_subject": triples_by_subject
+		"triples_by_subject": triples_by_subject,
+		"subject_names": subject_names
 	}
 
 # Helper function to expand prefixed URIs
@@ -97,12 +109,16 @@ func _on_request_completed(_result, response_code, headers, body):
 	var ttl_content = body.get_string_from_utf8()
 	var parsed_data = parse_turtle_file(ttl_content)
 	
-	print("Prefixes:")
-	for prefix in parsed_data.prefixes.keys():
-		print("  " + prefix + ": " + parsed_data.prefixes[prefix])
+	#print("Prefixes:")
+	#for prefix in parsed_data.prefixes.keys():
+		#print("  " + prefix + ": " + parsed_data.prefixes[prefix])
+	#
+	#print("\nTriples by subject:")
+	#for subject in parsed_data.triples_by_subject.keys():
+		#print("Subject: " + subject)
+		#for triple in parsed_data.triples_by_subject[subject]:
+			#print("  " + triple.predicate + " → " + triple.object)
 	
-	print("\nTriples by subject:")
-	for subject in parsed_data.triples_by_subject.keys():
-		print("Subject: " + subject)
-		for triple in parsed_data.triples_by_subject[subject]:
-			print("  " + triple.predicate + " → " + triple.object)
+	print("\nSubject Names (@en):")
+	for subject in parsed_data.subject_names.keys():
+		print("  " + subject + " → " + parsed_data.subject_names[subject])
